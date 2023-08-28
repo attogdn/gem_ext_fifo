@@ -1,10 +1,10 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// Company:
-// Engineer:
+// Company: Transbit Sp. z o.o.
+// Engineer: MB, GM
 //
 // Create Date: 07/12/2022 09:44:09 AM
-// Design Name:
+// Design Name: Xilinx MPSoC GEM External FIFO Interface - Tx
 // Module Name: ext_fifo_tx
 // Project Name:
 // Target Devices:
