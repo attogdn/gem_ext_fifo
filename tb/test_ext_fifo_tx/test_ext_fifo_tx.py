@@ -238,4 +238,4 @@ def gem_ext_fifo_tx_test_runner():
 
 
 if __name__ == "__main__":
-    test_axi_pe43704_runner()
+    gem_ext_fifo_tx_test_runner()

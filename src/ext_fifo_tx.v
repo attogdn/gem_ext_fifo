@@ -14,7 +14,8 @@
 // Dependencies:
 //
 // Revision:
-// Revision 0.01 - File Created
+// 1.01 [MB] - File Created
+// 1.02 [GM] - Changed signal names to standard; chenged handshaking
 // Additional Comments:
 //
 //////////////////////////////////////////////////////////////////////////////////
@@ -32,17 +33,19 @@ module ext_fifo_tx (
     output reg flushed_o,
     output reg control_o,
     output reg dma_tx_status_tog_o,
-    output wire axis_tready_o,
     input wire dma_tx_end_tog_i,
     input wire rd_i,
     input wire [3:0] status_i,
-    input wire [7:0] axis_tdata_i,
-    input wire [7:0] axis_tid_i,
-    input wire [7:0] axis_tdest_i,
-    input wire axis_tkeep_i,
-    input wire axis_tvalid_i,
-    input wire axis_tlast_i,
-    input wire axis_tuser_i,
+
+    // AXI4-Stream 
+    input wire [7:0] s_axis_tdata,
+    input wire [7:0] s_axis_tid,
+    input wire [7:0] s_axis_tdest,
+    output wire s_axis_tready,
+    input wire s_axis_tkeep,
+    input wire s_axis_tvalid,
+    input wire s_axis_tlast,
+    input wire s_axis_tuser,
     input wire rstn,
     input wire clk
 );
@@ -53,8 +56,8 @@ module ext_fifo_tx (
   /* GM patch */
   /* incorrect handshaking */
 
-  assign axis_tready_o = rd_i;
-  assign data_o = axis_tdata_i;
+  assign s_axis_tready = rd_i;
+  assign data_o = s_axis_tdata;
 
   always @(posedge clk) begin
 
@@ -72,11 +75,11 @@ module ext_fifo_tx (
 
       // Signal MAC that data is ready to send
       if (packet == 1'b0)
-        data_ready_o <= axis_tvalid_i;
+        data_ready_o <= s_axis_tvalid;
       else 
         data_ready_o <= 1'b0;
 
-      data_valid_o = rd_i & axis_tvalid_i;
+      data_valid_o = rd_i & s_axis_tvalid;
 
       // If the FIFO is empty, and a read signal has been asserted, set underflow
       if (status_i[3] == 1'b1) underflow_o <= 1'b1;
@@ -91,19 +94,19 @@ module ext_fifo_tx (
       if (dma_tx_end_tog_i == 1'b1 || status_i[2] == 1'b1) dma_tx_status_tog_o <= 1'b1;
       else dma_tx_status_tog_o <= 1'b0;
 
-      if ((axis_tvalid_i == 1'b1) && (axis_tready_o == 1'b1) && (packet == 1'b0))
+      if ((s_axis_tvalid == 1'b1) && (s_axis_tready == 1'b1) && (packet == 1'b0))
         packet <= 1'b1;
-      else if ((axis_tvalid_i == 1'b1) && (axis_tlast_i == 1'b1) && (packet == 1'b1))
+      else if ((s_axis_tvalid == 1'b1) && (s_axis_tlast == 1'b1) && (packet == 1'b1))
         packet <= 1'b0;
       else  
         packet <= packet;
 
-      if ((axis_tvalid_i == 1'b1) && (axis_tready_o == 1'b1) && (packet != 1'b1))
+      if ((s_axis_tvalid == 1'b1) && (s_axis_tready == 1'b1) && (packet != 1'b1))
         sop_o <= 1'b1;
       else 
         sop_o <= 1'b0;
       
-      if ((axis_tlast_i == 1'b1) && (axis_tvalid_i == 1'b1) && (packet == 1'b1))
+      if ((s_axis_tlast == 1'b1) && (s_axis_tvalid == 1'b1) && (packet == 1'b1))
         eop_o <= 1'b1;
       else
         eop_o <= 1'b0; 
