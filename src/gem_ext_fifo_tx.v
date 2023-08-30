@@ -84,7 +84,7 @@ module gem_ext_fifo_tx (
       gem_data_valid = gem_data_rd_request & s_axis_tvalid;
 
       // If the FIFO is empty, and a read signal has been asserted, set underflow
-      if (status_i[3] == 1'b1) gem_underflow <= 1'b1;
+      if (gem_status[3] == 1'b1) gem_underflow <= 1'b1;
       else gem_underflow <= 1'b0;
 
 
