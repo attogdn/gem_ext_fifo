@@ -23,19 +23,19 @@
 
 module gem_ext_fifo_tx (
 
-    output wire [7:0] data_o,
-    output reg data_ready_o,
-    output reg data_valid_o,
-    output reg sop_o,
-    output reg eop_o,
-    output reg err_o,
-    output reg underflow_o,
-    output reg flushed_o,
-    output reg control_o,
-    output reg dma_tx_status_tog_o,
-    input wire dma_tx_end_tog_i,
-    input wire rd_i,
-    input wire [3:0] status_i,
+    output  [ 7:0]  gem_data,
+    output          gem_data_ready,
+    output          gem_data_valid,
+    input           gem_data_rd_request,
+    output          gem_sop,
+    output          gem_eop,
+    output          gem_err,
+    output          gem_flushed,
+    output          gem_underflow,
+    output          gem_control,
+    output          gem_dma_tx_status_tog,
+    output          gem_dma_tx_end_tog,
+    input   [ 3:0]  gem_status
 
     // AXI4-Stream 
     input wire [7:0] s_axis_tdata,
@@ -56,43 +56,45 @@ module gem_ext_fifo_tx (
   /* GM patch */
   /* incorrect handshaking */
 
-  assign s_axis_tready = rd_i;
-  assign data_o = s_axis_tdata;
+  assign s_axis_tready = gem_data_rd_request;
+  assign gem_data = s_axis_tdata;
 
   always @(posedge clk) begin
 
     // Reset
     if (rstn == 1'b0) begin
-      err_o <= 1'b0;
-      control_o <= 1'b0;
-      underflow_o <= 1'b0;
-      flushed_o <= 1'b0;
-      dma_tx_status_tog_o <= 1'b0;
+      gem_err <= 1'b0;
+      gem_control <= 1'b0;
+      gem_underflow <= 1'b0;
+      gem_flushed <= 1'b0;
+      gem_data_valid <= 1'b0;
+      gem_data_ready <= 1'b0;
+      gem_dma_tx_status_tog <= 1'b0;
       packet <= 1'b0;
-      sop_o <= 1'b0;
-      eop_o <= 1'b0;
+      gem_sop <= 1'b0;
+      gem_eop <= 1'b0;
     end else begin 
 
       // Signal MAC that data is ready to send
       if (packet == 1'b0)
-        data_ready_o <= s_axis_tvalid;
+        gem_data_ready <= s_axis_tvalid;
       else 
-        data_ready_o <= 1'b0;
+        gem_data_ready <= 1'b0;
 
-      data_valid_o = rd_i & s_axis_tvalid;
+      gem_data_valid = gem_data_rd_request & s_axis_tvalid;
 
       // If the FIFO is empty, and a read signal has been asserted, set underflow
-      if (status_i[3] == 1'b1) underflow_o <= 1'b1;
-      else underflow_o <= 1'b0;
+      if (status_i[3] == 1'b1) gem_underflow <= 1'b1;
+      else gem_underflow <= 1'b0;
 
 
       // On setting o_underflow, or receiving status, assert o_flushed
-      if (underflow_o == 1'b1 || status_i != 4'b0) flushed_o <= 1'b1;
-      else flushed_o <= 1'b0;
+      if (gem_underflow == 1'b1 || gem_status != 4'b0) gem_flushed <= 1'b1;
+      else gem_flushed <= 1'b0;
 
       // o_dma_status_tog has to be asserted after i_dma_end_tog is received
-      if (dma_tx_end_tog_i == 1'b1 || status_i[2] == 1'b1) dma_tx_status_tog_o <= 1'b1;
-      else dma_tx_status_tog_o <= 1'b0;
+      if (gem_dma_tx_end_tog == 1'b1 || gem_status[2] == 1'b1) gem_dma_tx_status_tog <= 1'b1;
+      else gem_dma_tx_status_tog <= 1'b0;
 
       if ((s_axis_tvalid == 1'b1) && (s_axis_tready == 1'b1) && (packet == 1'b0))
         packet <= 1'b1;
@@ -102,18 +104,18 @@ module gem_ext_fifo_tx (
         packet <= packet;
 
       if ((s_axis_tvalid == 1'b1) && (s_axis_tready == 1'b1) && (packet != 1'b1))
-        sop_o <= 1'b1;
+        gem_sop <= 1'b1;
       else 
-        sop_o <= 1'b0;
+        gem_sop <= 1'b0;
       
       if ((s_axis_tlast == 1'b1) && (s_axis_tvalid == 1'b1) && (packet == 1'b1))
-        eop_o <= 1'b1;
+        gem_eop <= 1'b1;
       else
-        eop_o <= 1'b0; 
+        gem_eop <= 1'b0; 
 
       // Set other signals (UNUSED FOR NOW)
-      control_o <= 1'b0;
-      err_o <= 1'b0;
+      gem_control <= 1'b0;
+      gem_err <= 1'b0;
     end 
   end
 
