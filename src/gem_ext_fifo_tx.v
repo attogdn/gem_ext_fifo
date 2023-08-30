@@ -34,7 +34,7 @@ module gem_ext_fifo_tx (
     output          gem_underflow,
     output          gem_control,
     output          gem_dma_tx_status_tog,
-    output          gem_dma_tx_end_tog,
+    input           gem_dma_tx_end_tog,
     input   [ 3:0]  gem_status,
 
     // AXI4-Stream 
