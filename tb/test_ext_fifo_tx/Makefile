@@ -12,15 +12,15 @@ else
 
 SIM ?= icarus 
 
-DUT = ext_fifo_tx
+DUT = gem_ext_fifo_tx
 
-ROOT_DIR ?= $(shell pwd)/../../..
+ROOT_DIR ?= $(shell pwd)/../..
 
-VERILOG_SOURCES = $(ROOT_DIR)/ip/gem_ext_fifo/src/$(DUT).v
-VERILOG_SOURCES += $(ROOT_DIR)/alexforencich/verilog-ethernet/lib/axis/rtl/axis_fifo.v
-VERILOG_SOURCES += $(ROOT_DIR)/ip/gem_ext_fifo/tb/tb_gem_ext_fifo_tx.v
+VERILOG_SOURCES = $(ROOT_DIR)/src/$(DUT).v
+VERILOG_SOURCES += $(ROOT_DIR)/tb/test_ext_fifo_tx/axis_fifo.v
+VERILOG_SOURCES += $(ROOT_DIR)/tb/test_ext_fifo_tx/tb_gem_ext_fifo_tx.v
 
-MODULE = test_$(DUT)
+MODULE = tb_$(DUT)
 TOPLEVEL = tb_$(DUT)
 
 include $(shell cocotb-config --makefiles)/Makefile.sim

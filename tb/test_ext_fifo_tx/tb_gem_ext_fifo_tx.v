@@ -55,9 +55,9 @@ module tb_gem_ext_fifo_tx (
     wire            int_axis_tdest;
     wire            int_axis_tuser;  
 
-    assign rst = rstn;
+    assign rst = ~rstn;
 
-    ext_fifo_tx UUT (
+    gem_ext_fifo_tx UUT (
         .clk (clk),
         .rstn (rstn),
         .s_axis_tdata(int_axis_tdata),
@@ -67,7 +67,7 @@ module tb_gem_ext_fifo_tx (
         .s_axis_tlast(int_axis_tlast),
         .s_axis_tid(int_axis_tid),
         .s_axis_tdest(int_axis_tdest),
-        .s_axis_tuser(int_axis_tuser),
+        .s_axis_tuser(int_axis_tuser)
     );
 
     axis_fifo #(
@@ -118,7 +118,7 @@ i_data_fifo (
 
     // Dump waves 
     initial begin
-        $dumpfile("dumo.vcd");
+        $dumpfile("dump.vcd");
         $dumpvars(1, tb_gem_ext_fifo_tx);
     end
 
