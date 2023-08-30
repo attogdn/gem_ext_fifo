@@ -43,7 +43,7 @@ module tb_gem_ext_fifo_tx (
     output          gem_control,
     output          gem_dma_tx_status_tog,
     output          gem_dma_tx_end_tog,
-    input   [ 3:0]  gem_status
+    input   [ 3:0]  gem_status,
 );
     wire            rst;
     wire [ 7:0]     int_axis_tdata;
