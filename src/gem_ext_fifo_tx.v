@@ -23,19 +23,19 @@
 
 module gem_ext_fifo_tx (
 
-    output  [ 7:0]  gem_data,
-    output          gem_data_ready,
-    output          gem_data_valid,
-    input           gem_data_rd_request,
-    output          gem_sop,
-    output          gem_eop,
-    output          gem_err,
-    output          gem_flushed,
-    output          gem_underflow,
-    output          gem_control,
-    output          gem_dma_tx_status_tog,
-    input           gem_dma_tx_end_tog,
-    input   [ 3:0]  gem_status,
+    output wire [ 7:0]  gem_data,
+    output reg        gem_data_ready,
+    output reg      gem_data_valid,
+    input wire      gem_data_rd_request,
+    output reg      gem_sop,
+    output reg      gem_eop,
+    output reg      gem_err,
+    output reg      gem_flushed,
+    output reg      gem_underflow,
+    output reg      gem_control,
+    output reg      gem_dma_tx_status_tog,
+    input wire      gem_dma_tx_end_tog,
+    input wire [ 3:0  ]  gem_status,
 
     // AXI4-Stream 
     input wire [7:0] s_axis_tdata,
