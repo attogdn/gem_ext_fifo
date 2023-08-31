@@ -1,8 +1,8 @@
-# gem_ext_fifo
-Xilinx MPSoC External FIFO interface 
+# external_fifo_transceiver 
+Blok IP służący do komunikacji z external_fifo_interface modułu GEM w ZCU102. Konwertuje odebrane/wysyłane
+pakiety na AXI-Stream.
 
-For more information see:
-* [GEM External FIFO Interface](https://docs.xilinx.com/r/en-US/ug1085-zynq-ultrascale-trm/Rx-and-Tx-FIFO-Interfaces-to-PL)
-* [GEM External FIFO Timing](https://support.xilinx.com/s/article/69490?language=en_US)
-* [Xilinx Support Article](https://support.xilinx.com/s/question/0D52E00006hpXE2SAM/zynq-mpsoc-gem-external-fifo-no-dma-system-configuration?language=en_US)
-* [GEM Debugging Tips](https://support.xilinx.com/s/article/1027406?language=en_US)
+## Foldery
+- srcs: pliki źródłowe Verilogu.
+- tests: zawiera testy i symulacje poszczególnych modułów bloku IP. Testy zostały napisane w
+Pythonie z użyciem [cocotb](https://www.cocotb.org/). Przebiegi czasowe można podejrzeć z użyciem np. GTKwave.

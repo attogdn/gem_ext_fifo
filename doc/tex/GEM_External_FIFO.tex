@@ -1,0 +1,467 @@
+% Document definitions
+\documentclass[11pt, letterpaper]{article}
+
+% Packages
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage[T1]{fontenc}
+\graphicspath{{../img/}}
+
+% Configurations
+
+% Enumerations
+\renewcommand{\labelenumii}{\arabic{enumi}.\arabic{enumii}}
+\renewcommand{\labelenumiii}{\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}}
+\renewcommand{\labelenumiv}{\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}.\arabic{enumiv}}
+
+\title{GEM External FIFO}
+\author{Michał Bojke}
+\date{Sierpień 2022}
+
+\begin{document}
+\maketitle
+\section{Spis treści}%
+\label{sec:Spis treści}
+\begin{enumerate}
+    \setcounter{enumi}{1}
+    \item Cel użycia
+    \item Ustawienia platformy testowej
+        \begin{enumerate}
+            \item Ustawienia procesora z użyciem Vivado
+        \end{enumerate}
+    \item
+\end{enumerate}
+\pagebreak
+\section{Cel użycia}
+Interfejs External FIFO Interface jest wykorzystany w celu odciążenia procesora poprzez przekierowanie pakietów odbieranych przez GEM do PL, omijając przy tym blok DMA zintegrowany w GEMie. Przetwarzanie pakietów w PL powinno zwiększyć przepływność, a co za tym idzie - rozwiązać problem przesyłania małych ramek.
+
+\vspace{10mm}
+
+\includegraphics[width=\textwidth]{1}
+\caption{Rys. 1: Diagram blokowy interfejsu GEM. Interesująca nas część to FIFO interface to PL, w lewym górnym rogu ilustracji.}
+
+\vspace{10mm}
+
+\section{Ustawienie platformy testowej}
+\subsection{Ustawienia procesora z użyciem Vivado}
+Konfiguracja procesora obywa się zgodnie z opisami zamieszczonymi w:
+\linebreak
+\url{https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/478937213/MPSoC+PS+and+PL+Ethernet+Example+Projects#Using-PL-1G-Ethernet}
+\pagebreak
+\linebreak
+Łatwo jest skonfigurować procesor opierając się na przykładach z:
+\linebreak
+\url{https://github.com/Xilinx-Wiki-Projects/ZCU102-Ethernet}
+
+\vspace{5mm}
+\noindent Konkretnie z użyciem projektu opisanego jako ps\_mio\_eth\_1g. W skrypcie do generacji projektu w Vivado (Scripts/project\_bd.tcl) należy zmienić wersję programu na tą, której używamy.
+
+\vspace{5mm}
+Jedyną modyfikacją poza podstawowym włączeniem interfejsu GEM3 na tym etapie jest ustawienie External FIFO Interface w ustawieniach procesora (zakładka PS-PL Interface/General/Others/GEM3/External FIFO interface):
+
+
+\vspace{10mm}
+\includegraphics[width=\textwidth]{2}
+\begin{center}
+\caption{Rys. 2: Włączenie External FIFO Interface}
+\end{center}
+
+\pagebreak
+
+\includegraphics[width=\textwidth]{3}
+\begin{center}
+\caption{Rys. 3: Blok procesora po konfiguracji}
+\end{center}
+
+\vspace{10mm}
+
+\noindent Sygnały opisane są w:
+\\
+\url{https://docs.xilinx.com/v/u/en-US/ug1085-zynq-ultrascale-trm}
+\\
+(GEM Ethernet/Functional Description/Rx and Tx FIFO Interfaces to PL)
+\linebreak
+
+\vspace{2mm}
+Należy zwrócić uwagę, że szerokość rejestru rx\_w\_data wynosi 8 bitów, w przeciwieństwie do 32 bitów podanych w dokumentacji – dzieje się tak, ponieważ używamy external FIFO skonfigurowanego jako slave.
+Aby rozpocząć pracę w Vitis, należy wyeksportować projekt w Vivado (File/Export Hardware), po dokonaniu implementacji i generacji bitstreamu.
+\subsection{Aplikacja testowa z użyciem lwip}
+Do przygotowania testu, należy stworzyć platformę w Vitis (File/New/Platform Project). Następnie, przez plik platform.spr, należy zmodyfikować ustawienia BSP platformy standalone:
+
+\includegraphics[width=\textwidth]{4}
+\begin{center}
+\caption{Rys. 4: Modyfikacja ustawień BSP platformy standalone}
+\end{center}
+
+\vspace{2mm}
+W menu Modify BSP Settings, załączamy bibliotekę lwip:
+\vspace{2mm}
+
+\includegraphics[width=\textwidth]{5}
+\begin{center}
+\caption{Rys. 5: Załączenie biblioteki lwip}
+\end{center}
+Uwaga:
+W opcjach lwip możemy włączyć debugowanie poszczególnych elementów aplikacji, co jest dość przydatne w zrozumieniu jak działa lwip.
+Następnie budujemy projekt oraz tworzymy nową aplikację (File/New/Application Project). Z szablonu należy wybrać projekt lwip, np.. Echo Server:
+
+\vspace{5mm}
+\includegraphics[width=\textwidth]{6}
+\begin{center}
+\caption{Rys. 6: Stworzenie projektu lwip z szablonu.}
+\end{center}
+
+\vspace{5mm}
+W wygenerowanym szablonie w pliku main.c należy ustawić IP, maskę oraz bramę.
+\vspace{5mm}
+
+\includegraphics[width=\textwidth]{7}
+\begin{center}
+\caption{Rys. 7: Zmiana adresów IP w main.c}
+\end{center}
+\vspace{2mm}
+
+Istnieje również możliwość nadania płytce adresu MAC. Domyślny adres, nadawany przez aplikację, to 02:01:00:35:0A:00.
+Po zbudowaniu aplikacji, powinna ona ustawiać działający serwer echo.
+Uwagi:
+Na tym etapie, nasza aplikacja działa bez wykorzystania External FIFO Interface, ale możemy go włączyć z jej poziomu, o czym mowa w punkcie 3.
+Włączenie interfejsu sprawia, że aplikacja nie działa poprawnie – lwip korzysta z DMA GEMu, co oznacza, że serwer nigdy nie wykrywa przychodzących pakietów (ponieważ nie trafiają one nigdy do DMA GEMu, lecz wysyłane są do PL).
+Więcej o tym problemie w punkcie 7.
+
+\section{Opis i konfiguracja External FIFO Interface}
+\subsection{Opis działania}
+Użycie interfejsu External FIFO pozwala przesłać dane bezpośrednio do PL, dzięki czemu nie musimy polegać na kontrolerze DMA GEM.
+Interfejs odbiera ramki w następujących przypadkach (wszystkie przytoczone rejestry opisane są w podpunkcie 4.3):
+\begin{enumerate}
+    \item Adres MAC źródła/odbiorcy ramki jest taki, jak skonfigurowano w rejestrach spec\_add[1...4]\_top oraz spec\_add[1...4]\_bottom. Przy inicjalizacji sterownik zapisuje do pierwszego takiego rejestru adres MAC urządzenia, który ustawiony jest w projekcie.
+    \item Typ/dlugość ramki przychodzącej jest zgodna z ID zapisanym w którymś z rejestrów spec\_type[1...4]
+    \item Jeśli włączone jest hashowanie unicast/multicast poprzez rejestr network\_config, to przychodząca ramka jest przyjęta tylko w przypadku poprawnego rozpoznania.
+    \item Adres odbiorcy ramki to 0xFFFFFFFFFFFF i broadcasty są włączone (rejestr network\_config).
+    \item Włączone jest odbieranie wszelkich ramek (rejestr network\_config).
+\end{enumerate}
+
+Uwagi:
+Gdy wpiszemy w rejestry spec\_add[1...4] adresy urządzenia-nadawcy, odbierane będą wszystkie pakiety wysyłane przez to urządzenie - również broadcast, nawet jeśli są wyłączone.
+
+\subsection{Włączenie interfejsu oraz edytowanie zawartości rejestrów}
+Aby łatwiej konfigurować rejestry, należy załączyć do projektu plik nagłówkowy “xemacps.h”, tj. Plik nagłówkowy sterownika Xilinx Embedded Processor Block Ethernet. Zawiera on definicje większości potrzebnych offsetów rejestrów dotyczących interfejsu GEM. Najważniejsze z nich zdefiniowane są w pliku “xemacps\_hw.h”.
+Niestety, w pliku nie jest zdefiniowany offset, który potrzebny jest najbardziej – external\_fifo\_interface. Dlatego też należy zdefiniować go własnoręcznie:
+
+\vspace{5mm}
+\includegraphics[width=\textwidth]{8}
+\begin{center}
+\caption{Rys. 8: Definicja XEMACPS\_EXTFIFOIF\_OFFSET.}
+\end{center}
+
+Żeby wpisywać wartości do rejestrów, należy użyć funkcji XEmacPs\_WriteReg, która jako argumenty przyjmuje bazowy adres rejestru, offset, oraz wartość, którą do niego wpisuje.
+
+\vspace{5mm}
+\includegraphics[width=\textwidth]{9}
+\begin{center}
+\caption{Rys. 9: Przykład użycia funkcji XEmacPs\_WriteReg ze zdefiniowanym wcześniej offsetem.}
+\end{center}
+Powyższy przykład włącza External FIFO Interface.
+Opis wszystkich rejestrów można znaleźć tu (sekcja GEM Module):
+\\
+\url{https://www.xilinx.com/htmldocs/registers/ug1087/ug1087-zynq-ultrascale-registers.html}
+
+\subsection{Rejestry niezbędne}
+Przy inicjalizacji sterownik ustawia większość rejestrów niezbędnych do prawidłowego funkcjonowania interfejsu. W przypadku, gdy chcemy jednak pracować z External FIFO, niezbędna jest dodatkowa konfiguracja rejestru network\_config.
+\pagebreak
+\begin{enumerate}
+    \item external\_fifo\_interface (offset 0x000000004C)
+    \begin{center}
+        \begin{tabularx}{1\textwidth} {
+  | >{\raggedright\arraybackslash}X
+  | >{\centering\arraybackslash}X
+  | >{\raggedright\arraybackslash}X | }
+    \hline
+    Nazwa & Nr.bitu & Opis \\
+    \hline
+    -- & 31:1 & Ignorowane \\
+    \hline
+    external\_fifo\_interface & 0 & Ustawiony na 1, włącza External FIFO. \\
+    \hline
+\end{tabularx}
+    \end{center}
+    \item network\_config 	(offset 0x0000000004)
+    \begin{center}
+        \begin{tabularx}{1\textwidth} {
+  | >{\raggedright\arraybackslash}X
+  | >{\centering\arraybackslash}X
+  | >{\raggedright\arraybackslash}X | }
+    \hline
+    Nazwa & Nr.bitu & Opis \\
+    \hline
+    data\_bus\_width & 22:21 & Aby pracować w trybie External FIFO, muszą być wyzerowane. \\
+    \hline
+        \end{tabularx}
+    \end{center}
+\end{enumerate}
+
+\subsection{Rejestry dodatkowe}
+Poniżej znajduje się lista przykładowych przydatnych rejestrów i ich poszczególnych bitów, które pozwalają dowolnie modyfikować sposób działania interfejsu.
+\begin{enumerate}
+    \item  network\_config	(offset 0x0000000004)
+    \begin{center}
+        \begin{tabularx}{1\textwidth} {
+  | >{\raggedright\arraybackslash}X
+  | >{\centering\arraybackslash}X
+  | >{\raggedright\arraybackslash}X | }
+    \hline
+    Nazwa & Nr.bitu & Opis \\
+    \hline
+    receive\_checksum \_offload\_enable & 24 & Gdy ustawiony, obliczana jest suma kontrolna przychodzących pakietów. Pakiety o niewłaściwej sumie są odrzucane. \\
+    \hline
+    data\_bus\_width & 22:21 & Aby pracować w trybie External FIFO, muszą być wyzerowane. \\
+    \hline
+    no\_broadcast & 5 & Gdy ustawiony, ramki broadcast zaadresowane na FFFFFFFF nie będą przyjmowane. \\
+    \hline
+    copy\_all\_frames & 4 & Gdy ustawiony, wszystkie poprawne ramki będą przyjmowane. \\
+    \hline
+    jumbo\_frames & 3 & Gdy ustawiony, włącza obsługę ramek jumbo o dopuszczonej długości ustawionej przez rejestr jumbo\_max\_length. Domyślnie 10 240 bajtów. \\
+    \hline
+    discard\_non \_vlan\_frames & 2 & Gdy ustawiony, przepuszczone zostaną tylko ramki VLAN. \\
+    \hline
+\end{tabularx}
+    \end{center}
+
+    \item jumbo\_max\_length 	(offset 0x0000000048)
+    \begin{center}
+        \begin{tabularx}{1\textwidth} {
+  | >{\raggedright\arraybackslash}X
+  | >{\centering\arraybackslash}X
+  | >{\raggedright\arraybackslash}X | }
+    \hline
+    Nazwa & Nr.bitu & Opis \\
+    \hline
+    --- & 31:16 & Ignorowane \\
+    \hline
+    jumbo\_max\_length & 15:0 & Ustawia maksymalną długość ramek jumbo. \\
+    \hline
+\end{tabularx}
+    \end{center}
+
+    \item spec\_add[1...4]\_bottom   (offsety 0x0000000088; 0x0000000090; 0x0000000098; 					     0x00000000A0)
+    \begin{center}
+        \begin{tabularx}{1\textwidth} {
+  | >{\raggedright\arraybackslash}X
+  | >{\centering\arraybackslash}X
+  | >{\raggedright\arraybackslash}X | }
+    \hline
+    Nazwa & Nr.bitu & Opis \\
+    \hline
+    address & 31:0 & Mniej znaczące bity adresu MAC nadawcy/odbiorcy, w zależności od ustawienia spec\_add[1...4]\_top. Bit 0 określa multicast/unicast. \\
+    \hline
+\end{tabularx}
+\end{center}
+
+    \item spec\_add[1...4]\_top	 (offsety 0x000000008C; 0x0000000094; 0x000000009C; 					     0x00000000A4)
+    \begin{center}
+        \begin{tabularx}{1\textwidth} {
+  | >{\raggedright\arraybackslash}X
+  | >{\centering\arraybackslash}X
+  | >{\raggedright\arraybackslash}X | }
+    \hline
+    Nazwa & Nr.bitu & Opis \\
+    \hline
+    --- & 31:17 & Ignorowane \\
+    \hline
+    filter\_type & 16 & Bit decydujący o tym, czy pakiety przyjmowane są na podstawie MAC nadawcy, czy odbiorcy. Gdy jest wyzerowany, liczy się MAC odbiorcy, a gdy ustawiony, liczy się adres MAC nadawcy, z którego pochodzi ramka. \\
+    \hline
+    address & 15:0 & Bardziej znaczące bity adresu MAC nadawcy/odbiorcy, w zależności od ustawienia filter\_type. \\
+    \hline
+\end{tabularx}
+\end{center}
+\end{enumerate}
+
+\subsection{Działanie interfejsu}
+Poniżej zamieszczone zostały przebiegi czasowe, ilustrujące odbiór danych w różnych konfiguracjach.
+\vspace{5mm}
+
+\includegraphics[width=\textwidth]{10}
+\begin{center}
+    \caption{Rys. 10: Przebieg czasowy dla włączonego External FIFO. Do rejestru external\_fifo\_interface wpisana została wartość 1.}
+\end{center}
+\vspace{5mm}
+
+\includegraphics[width=\textwidth]{11}
+\begin{center}
+\caption{Rys. 11: Przebieg czasowy z rys. 10. Do rejestru network\_config wpisana została wartość 0x011F24C2 (Data Bus Width dostosowany do pracy z External FIFO). Jak widać, wartości wpisywane są poprawnie – w sygnale rx\_w\_wr nie ma przerw.}
+\end{center}
+\vspace{5mm}
+
+\includegraphics[width=\textwidth]{12}
+\begin{center}
+\caption{Rys. 12: Przebieg czasowy z rys. 11. Do rejestru network\_config wpisana została wartość 0x011F24E2 (Wyłączone odbieranie broadcastów). Odebrana została wysłana w ramach testu ramka o treści ”BB BB BB BB”.}
+\end{center}
+\vspace{5mm}
+
+\includegraphics[width=\textwidth]{13}
+\begin{center}
+\caption{Rys. 13: Przebieg czasowy z rys. 12. Do rejestru spec\_add1\_high wpisana została wartość 0x000000201, a do rejestru spec\_add1\_bottom wartość 0x00350A00. Oznacza to, że ramki odbierane filtrowane są na podstawie adresu MAC odbiorcy - w tym przypadku MAC płytki ZCU102, który został jej nadany w aplikacji.}
+\end{center}
+\vspace{5mm}
+
+\includegraphics[width=\textwidth]{14}
+\begin{center}
+\caption{Rys. 14: Przebieg czasowy z rys. 13. Do rejestru spec\_add1\_high wpisana została wartość 0x000010101, a do rejestru spec\_add1\_bottom wartość 0x00171B00. Oznacza to, że ramki odbierane filtrowane są na podstawie adresu MAC nadawcy. Warto zauważyć, że mimo wyłączenia odbierania broadcastów ramka została odebrana, ponieważ adres MAC nadawcy został ustawiony jako filtr.}
+\end{center}
+\vspace{5mm}
+
+\section{Testy iperf UDP/TCP bez External FIFO Interface}
+Testy zostały wykonane z użyciem przykładowych aplikacji lwip UDP/TCP perf server, na platformie skonfigurowanej tak jak w punkcie 2 (z wyłączonym External FIFO Interface).
+Maksymalna bezstratna przepływność w testach UDP jest definiowana jako utrata pakietów na poziomie mniejszym bądź równym 1\%.
+\subsection{Serwer UDP}
+\begin{center}
+    \begin{tabularx}{1\textwidth} {
+  | >{\centering\arraybackslash}X
+| >{\centering\arraybackslash}X | }
+    \hline
+    Rozmiar ramki & Maksymalna bezstratna przepływność [Mb/s]\\
+    \hline
+    64 & 99.4 \\
+    \hline
+    128 & 211 \\
+    \hline
+    256 & 302 \\
+    \hline
+    1024 & 937 \\
+    \hline
+    1518 & 937 \\
+    \hline
+     \end{tabularx}
+\end{center}
+\subsection{Serwer TCP}
+\begin{center}
+    \begin{tabularx}{1\textwidth} {
+  | >{\centering\arraybackslash}X
+| >{\centering\arraybackslash}X | }
+    \hline
+    Rozmiar ramki & Przepływność [Mb/s] \\
+    \hline
+    64 & 96.1 \\
+    \hline
+    128 & 95.9 \\
+    \hline
+    256 & 95.6 \\
+    \hline
+    1024 & 95.2 \\
+    \hline
+    1518 & 95.4 \\
+    \hline
+     \end{tabularx}
+\end{center}
+\section{Opis bloku IP}
+\subsection{Ogólny opis}
+Aby poprawnie odebrać pakiety ethernetowe od GEM zaprojektowany został poniższy blok IP:
+
+\includegraphics[width=\textwidth]{15}
+\begin{center}
+\caption{Rys. 15: Blok IP ext\_fifo\_transceiver.}
+\end{center}
+\vspace{5mm}
+Składa się on z 4 modułów: odbiornika, konwertera do-AXI-Stream, konwertera z-AXI-Stream, oraz nadajnika:
+
+\includegraphics[width=\textwidth]{16}
+\begin{center}
+\caption{Rys. 16: Blok IP ext\_fifo\_transceiver podzielony na moduły.}
+\end{center}
+\vspace{5mm}
+
+\subsection{AXI-Stream}
+Blok IP został skonfigurowany tak, aby można było podłączyć go do External FIFO Interface (połączenie gem\_ext\_fifo). Odebrane przez to połączenie dane przesyłane są przez wyjście m\_axis, natomiast przychodzące przez wejście s\_axis dane wysyłane są z powrotem do GEM.
+Dzięki temu, blok można połączyć z dowolnymi blokami działającymi z AXI-Stream (w szczególności z blokiem AXI-Stream-FIFO oraz kontrolerem AXI-DMA).
+Ext\_fifo\_transceiver nie używa następujących sygnałów AXI-Stream: STRB, TDEST, TKEEP, TID, TUSER. Wynika to z braku takiej potrzeby; implementacja tych sygnałów nie jest skomplikowana, więc w razie potrzeby jest to możliwe.
+Uwagi:
+Ext\_fifo\_transceiver nie implementuje kolejki FIFO, dlatego polega na podłączeniu bloku AXI-Stream-FIFO na wyjściu i/lub wejściu.
+
+\section{Konfiguracja platformy testowej z użyciem AXI DMA}
+\subsection{Block design z użyciem Vivado}
+Aby przetestować sposób, w który External FIFO Interface współpracuje z kontrolerem DMA umieszczonym w PL, utworzona została poniższa platforma testowa:
+
+\includegraphics[width=\textwidth]{17}
+\begin{center}
+\caption{Rys. 17: Platforma testowa, wykorzystująca  External FIFO Interface, stworzony blok IP, AXI-Stream-FIFO oraz kontroler AXI-DMA.}
+\end{center}
+\vspace{5mm}
+
+Blok AXI-DMA został skonfigurowany tak, aby działał w trybie Scatter-Gather. Wszystkie bloki AXI-Stream działają na 8-bitowych danych.
+\subsection{Opis działania aplikacji testowej z użyciem Vitis}
+Aplikacja testowa została stworzona na podstawie przykładu lwip Echo Server. Działa ona następująco:
+\begin{enumerate}
+    \item Pakiety odebrane przez GEM przesyłane są do bloku IP
+    \item Blok IP konwertuje dane na AXI-Stream i przesyła je do AXI-DMA
+    \item AXI-DMA, z użyciem przerwania przesyła dane do procesora, który od razu przesyła dane z powrotem do AXI-DMA
+    \item AXI-DMA wysyła dane odebrane od procesora do AXI-Stream-FIFO
+    \item AXI-Stream-FIFO wysyła dane do bloku IP
+    \item Blok IP odbiera dane z AXI-Stream, a następnie wysyła je do GEM.
+\end{enumerate}
+Jest to oczywiście zwyczajny loopback, ilustruje on jednak jak można wykorzystać PL do obróbki/przesyłu odebranych ramek – wystarczy dodać blok obrabiający dane pomiędzy ext\_fifo\_transceiver a AXI-DMA, lub obrabiać dane po przesłaniu ich z AXI-DMA do procesora, a potem przesyłać je z powrotem do PL bez udziału procesora.
+\subsection{Opis aplikacji testowej}
+Przykładowa wersja aplikacji opiera się na zmodyfikowanej przykładowej aplikacji lwip Echo Server.
+
+\includegraphics[width=\textwidth]{18}
+\begin{center}
+\caption{Rys. 18: Główna pętla programu.}
+\end{center}
+\vspace{5mm}
+
+\subsection{Działanie DMA}
+Inicjalizacja DMA oraz funkcje wspomagające zostały odwzorowane z poniższego źródła:
+\\
+\url{https://github.com/Xilinx/embeddedsw/blob/b9b64f53e11723c8df0dfda1c59742428b6f1df1/XilinxProcessorIPLib/drivers/AXIdma/examples/xAXIdma\_example\_sg\_intr.c}
+\\
+Kod inicjalizujący kontroler DMA oraz funkcje pomocnicze zostały umieszczone w pliku dma\_handler.c . Funkcja zapisująca przychodzące pakiety (RxCallback) została zmodyfikowana tak, aby pakiety zostały nadpisywane w jednym miejscu w pamięci, natomiast funkcja wysyłająca pakiety (SendPacket) została zmodyfikowana tak, aby pobierać pakiety z tego samego adresu pamięci a następnie je wysyłać. Wywoływana jest z głównej pętli programu po ustawieniu flagi RxDone przez przerwanie.
+\subsection{Działanie LWIP}
+Lwip działa z użyciem przerwań wywyoływanych w regularnych odstępach, które ustawiają flagi TcpFastTmr oraz TcpSlowTmr. Wywoływane przez flagi funkcje sprawdzają, czy aktywny jest obecnie PCB (Protocol Control Block), który zarządza sesją TCP. Odebrane przez procesor pakiety lwip alokuje z wykorzystaniem struktury pbuf (od packet buffer), która zostaje zakolejkowana w strukturze netif, która odpowiedzialna jest za całą komunikację internetową.
+Sprawa komplikuje się, gdyż aplikacja łączy inicjalizację netif z inicjalizacją sterownika EMacPs, odpowiedzialnego za “wyciąganie” pakietów z hardware’u.
+
+\includegraphics[width=\textwidth]{19}
+\begin{center}
+    \caption{Rys. 19: Xilinxowa funkcja dodająca netif do lwip.}
+\end{center}
+\vspace{5mm}
+
+Funkcja xemac\_add wywołuje następnie pochodzącą z lwip funkcję netif\_add, a także inicjalizuje interfejs xemacpsif. Ta z kolei wywołuje funkcję low\_level\_init, gdzie, w strukturze xemacpsif\_s, alokowana jest pamięć na kolejkę przychodzących oraz wychodzących pbufów. Struktura xemacpsif\_s zawiera również w sobie strukturę xemacps, która z kolei zawiera informacje o DMA GEMa (między innymi adresy, w których zostają alokowane Buffer Descriptor Rings). Inicjalizacja DMA znajduje się w pliku
+xemacpsif\_dma.c .
+
+\subsection{Ustawienie przerwań}
+Aby przerwania lwip oraz AXIDMA działały poprawnie, postanowiłem umieścić je w pliku platform\_zynqmp.c , w funkcji platform\_setup\_interrupts oraz platform\_enable\_interrupts, a także ustawić ich priorytety w następujący sposób:
+
+\includegraphics[width=\textwidth]{20}
+\begin{center}
+    \caption{Rys. 20: Ustawienia priorytetów przerwań (trzeci argument funkcji, wyższy numer oznacza niższy priorytet).}
+\end{center}
+\vspace{5mm}
+
+\section{Problemy do rozwiązania}
+\subsection{DMA i lwip}
+Aplikacja konfiguruje lwip tak, aby korzystało z DMA GEMa, co sprawia, że nie odpowiada ona na pakiety przychodzące do procesora z innego kontrolera DMA. Przez to, testowanie przepływności External FIFO Interface jest niemożliwe z wykorzystaniem przykładowej wersji aplikacji UPD/TCP Perf Server.
+\subsection{Rozpoczęcie sesji TCP}
+Z racji tego, że lwip nie wykrywa pakietów odbieranych, nie jest w stanie również ustanowić sesji TCP. Sprawia to, że platforma jest w stanie jedynie odbierać początkowy pakiet TCP, lecz nie potrafi przesłać go dalej (ponieważ nigdy nie sygnalizuje, że jest gotowa na odebranie kolejnych pakietów). W związku z tym, obecnie przesyłanie działa tylko na pakietach UDP i innych, niewymagających sesji (np. ICMP).
+\subsection{Potencjalne rozwiązania:}
+\begin{itemize}
+    \item Skonfigurować lwip tak, aby używało AXI-DMA zamiast DMA GEMa w całości.
+    \item Napisanie własnych pbufów, które odwołują się do buffer descriptorów z AXI-DMA, zgodnie z przykładem: 
+        \\
+        \url{https://www.nongnu.org/lwip/2\_1\_x/zerocopyrx.html}
+    \item Zmiana przerwań AXI-DMA tak, aby po odbiorze pakiety alokować pbuf w strukturze xemacps. W teorii, wykrycie pbufu w tej strukturze powinno aktywować PCB TCP, przez co (jeśli zawartość odebranego pakietu jest odpowiednia) rozpoczęta zostanie sesja TCP.
+    \item Stworzenie własnego network interface, dodanie go do listy aktywnych netifów lwip (zamiast użycia funkcji xemac\_add używamy wtedy normalnego netif\_add). Należy wtedy jednak zainicjalizować osobno XEmacPs, aby “wyciągał” pakiety z hardware’u. Pomocny link: 
+        \\
+        \url{https://lwip.fandom.com/wiki/Writing\_a\_device\_driver}
+    \item Przetestowanie przepływności bez użycia lwip, a jedynie iperf ustawionego na komputerze jako serwer, a platformą testową jako client.
+\end{itemize}
+
+\section{Przydatne narzędzia}
+\begin{itemize}
+    \item Ostinato - służy do generacji pakietów TCP/UDP, można ustawić długość, zawartość, ilość pakietów etc. Niestety nie jest w stanie uczestniczyć w sesji TCP.
+    \item Telnet - używany tylko do badania sesji TCP.
+    \item CocoTB – do pisania testbenchów w Pythonie, aby przetestować działanie napisanego w Verilogu bloku IP. Przykładowe testy znajdują się w repozytorium.
+\end{itemize}
+
+\section{Podsumowanie}
+Sam mechanizm obsługi External FIFO Interface w konfiguracji z AXIDMA działa bez zarzutu, jednak bez zmian w bibliotece lwip bądź sterowniku EmacPs niemożliwym jest na ten moment przetestowanie zysku przepływności.
+\end{document}
+

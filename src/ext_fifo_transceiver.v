@@ -1,10 +1,4 @@
 `timescale 1ns / 1ps
-`include "ext_fifo_tx.v"
-`include "ext_fifo_rx.v"
-`include "to_axis_converter.v"
-/* `include "/media/kreatywni/git/Work/Verilog/external_fifo_transceiver/src/ext_fifo_tx.v" */
-/* `include "/media/kreatywni/git/Work/Verilog/external_fifo_transceiver/src/ext_fifo_rx.v" */
-/* `include "/media/kreatywni/git/Work/Verilog/external_fifo_transceiver/src/to_axis_converter.v" */
 //////////////////////////////////////////////////////////////////////////////////
 // Company: Transbit SP.Z.O.O
 // Engineer: Michał Bojke
@@ -72,12 +66,13 @@ module ext_fifo_transceiver (
     input wire s_axis_tvalid,
     input wire s_axis_tlast,
     input wire s_axis_tuser,
+    input wire data_ready,
 
     // Clocks and reset
     input wire rx_clk,
     input wire tx_clk,
-    input wire rx_rstn,
-    input wire tx_rstn
+    input wire rx_resetn,
+    input wire tx_resetn
 );
 
   wire [7:0] w_in_data;
@@ -107,11 +102,11 @@ module ext_fifo_transceiver (
       .s_axis_tvalid(s_axis_tvalid),
       .s_axis_tlast(s_axis_tlast),
       .s_axis_tuser(s_axis_tuser),
-      .rstn(tx_rstn),
+      .resetn(tx_resetn),
       .clk(tx_clk)
   );
 
-  ext_fifo_rx rx (
+  gem_ext_fifo_rx rx (
       .i_data(rx_w_data),
       .i_wr(rx_w_wr),
       .i_sop(rx_w_sop),
@@ -123,7 +118,7 @@ module ext_fifo_transceiver (
       .o_data_start(w_rx_data_start),
       .o_data_end(w_rx_data_end),
       .o_overflow(rx_w_overflow),
-      .rst(rx_rstn),
+      .resetn(rx_resetn),
       .clk(rx_clk)
   );
 

@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module ext_fifo_rx (
+module gem_ext_fifo_rx (
     output reg [7:0] o_data,
     output reg o_data_start,
     output reg o_data_end,
@@ -32,7 +32,7 @@ module ext_fifo_rx (
     input wire i_err,
     input wire i_flush,
     input wire [44:0] i_status,
-    input wire rst,
+    input wire resetn,
     input wire clk
 );
 
@@ -40,7 +40,7 @@ module ext_fifo_rx (
   always @(posedge clk) begin
 
     // Reset
-    if (rst == 1'b0) begin
+    if (resetn == 1'b0) begin
       o_data_start <= 1'b0;
       o_data_end <= 1'b0;
       o_overflow <= 1'b0;
